@@ -1,0 +1,1 @@
+In this repository we are going to be working on a project that will be summarising the back-end trimester: authentication, NodeJS, MongoDB, Redis, pagination and background processing.
