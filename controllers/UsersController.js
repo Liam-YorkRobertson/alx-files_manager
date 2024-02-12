@@ -1,38 +1,46 @@
-// user controller
-
 import sha1 from 'sha1';
+import Queue from 'bull';
 import dbClient from '../utils/db';
 
-const UsersController = {
-  postNew: async (req, res) => {
-    if (!req.body) {
-      return res.status(400).json({ error: 'Missing request body' });
-    }
+const userQueue = new Queue('userQueue');
 
-    const { email, password } = req.body;
+class UsersController {
+  /**
+   * Creates a user using email and password
+   */
+  static async postNew(request, response) {
+    const { email, password } = request.body;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
-    }
+    // check for email and password
+    if (!email) return response.status(400).send({ error: 'Missing email' });
+    if (!password) return response.status(400).send({ error: 'Missing password' });
 
-    const existingUser = await dbClient.users.findOne({ email });
+    // check if the email already exists in DB
+    const emailExists = await dbClient.users.findOne({ email });
+    if (emailExists) return response.status(400).send({ error: 'Already exist' });
 
-    if (existingUser) {
-      return res.status(400).json({ error: 'Already exist' });
-    }
-
-    const hashedPassword = sha1(password);
-
+    // Insert new user
+    const sha1Password = sha1(password);
+    let result;
     try {
-      const newUser = await dbClient.users.insertOne({ email, password: hashedPassword });
-      return res.status(201).json({ id: newUser.insertedId, email });
-    } catch (error) {
-      return res.status(500).json({ error: 'Internal server error' });
+      result = await dbClient.users.insertOne({
+        email, password: sha1Password,
+      });
+    } catch (err) {
+      await userQueue.add({});
+      return response.status(500).send({ error: 'Error creating user' });
     }
-  },
-};
 
-export default UsersController;
+    const user = {
+      id: result.insertedId,
+      email,
+    };
+
+    await userQueue.add({
+      userId: result.insertedId.toString(),
+    });
+
+    return response.status(201).send(user);
+  }
+}
+module.exports = UsersController;
