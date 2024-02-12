@@ -78,6 +78,28 @@ class FilesController {
       .toArray();
     return res.json(files);
   }
+
+  static async putPublish(req, res) {
+    const { id } = req.params;
+    const { 'x-token': token } = req.headers;
+    const user = await dbClient.users.findOne({ token });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const file = await dbClient.files.findOne({ _id: id, userId: user._id });
+    if (!file) return res.status(404).json({ error: 'Not found' });
+    await dbClient.files.updateOne({ _id: id }, { $set: { isPublic: true } });
+    return res.status(200).json(file);
+  }
+
+  static async putUnpublish(req, res) {
+    const { id } = req.params;
+    const { 'x-token': token } = req.headers;
+    const user = await dbClient.users.findOne({ token });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const file = await dbClient.files.findOne({ _id: id, userId: user._id });
+    if (!file) return res.status(404).json({ error: 'Not found' });
+    await dbClient.files.updateOne({ _id: id }, { $set: { isPublic: false } });
+    return res.status(200).json(file);
+  }
 }
 
 export default FilesController;
