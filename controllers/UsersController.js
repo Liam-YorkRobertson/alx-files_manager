@@ -5,6 +5,10 @@ import dbClient from '../utils/db';
 
 const UsersController = {
   postNew: async (req, res) => {
+    if (!req.body) {
+      return res.status(400).json({ error: 'Missing request body' });
+    }
+
     const { email, password } = req.body;
 
     if (!email) {

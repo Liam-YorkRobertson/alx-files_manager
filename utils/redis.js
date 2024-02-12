@@ -1,4 +1,4 @@
-// utils/redis.js
+// redis server
 
 import redis from 'redis';
 import { promisify } from 'util';
