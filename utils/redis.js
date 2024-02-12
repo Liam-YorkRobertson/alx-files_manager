@@ -5,10 +5,7 @@ import { promisify } from 'util';
 
 class RedisClient {
   constructor() {
-    this.client = redis.createClient({
-      host: 'localhost',
-      port: 6379,
-    });
+    this.client = redis.createClient({});
     this.client.on('error', console.error);
     this.getAsync = promisify(this.client.get).bind(this.client);
     this.setAsync = promisify(this.client.set).bind(this.client);
