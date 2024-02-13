@@ -3,6 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import mime from 'mime-types';
+import { ObjectID } from 'mongodb';
 import dbClient from '../utils/db';
 
 class FilesController {
@@ -99,6 +101,39 @@ class FilesController {
     if (!file) return res.status(404).json({ error: 'Not found' });
     await dbClient.files.updateOne({ _id: id }, { $set: { isPublic: false } });
     return res.status(200).json(file);
+  }
+
+  static async getFile(request, response) {
+    const { id } = request.params;
+    const files = dbClient.db.collection('files');
+    const idObject = new ObjectID(id);
+    const file = await files.findOne({ _id: idObject });
+    if (!file) {
+      return response.status(404).json({ error: 'Not found' });
+    }
+    const userToken = request.headers['x-token'];
+    const user = await dbClient.users.findOne({ token: userToken });
+    if (!file.isPublic) {
+      if (!user || file.userId.toString() !== user._id.toString()) {
+        return response.status(404).json({ error: 'Not found' });
+      }
+    }
+    if (file.type === 'folder') {
+      return response.status(400).json({ error: "A folder doesn't have content" });
+    }
+    try {
+      let fileName = file.localPath;
+      const size = request.param('size');
+      if (size) {
+        fileName = `${file.localPath}_${size}`;
+      }
+      const data = await fs.promises.readFile(fileName);
+      const contentType = mime.contentType(file.name);
+      return response.header('Content-Type', contentType).status(200).send(data);
+    } catch (error) {
+      console.log(error);
+      return response.status(404).json({ error: 'Not found' });
+    }
   }
 }
 
