@@ -5,7 +5,10 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import mime from 'mime-types';
 import { ObjectID } from 'mongodb';
+import Bull from 'bull';
 import dbClient from '../utils/db';
+
+const fileQueue = new Bull('fileQueue');
 
 class FilesController {
   static async postUpload(request, response) {
@@ -50,6 +53,10 @@ class FilesController {
       const buffer = Buffer.from(data, 'base64');
       await fs.promises.writeFile(filePath, buffer);
       newFile.localPath = filePath;
+      const fileDocument = await dbClient.db.collection('files').insertOne(newFile);
+      fileQueue.add({ userId: request.userId, fileId: fileDocument.insertedId });
+    } else {
+      await dbClient.db.collection('files').insertOne(newFile);
     }
     const filesCollection = dbClient.db.collection('files');
     await filesCollection.insertOne(newFile);
