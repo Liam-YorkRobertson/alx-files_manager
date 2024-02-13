@@ -1,8 +1,11 @@
 // user controller
 
 import sha1 from 'sha1';
+import Bull from 'bull';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+
+const userQueue = new Bull('userQueue');
 
 class UsersController {
   static async postNew(request, response) {
@@ -21,6 +24,7 @@ class UsersController {
         return response.status(400).json({ error: 'Already exist' });
       }
       const newUser = await collection.insertOne({ email, password: hashedPassword });
+      await userQueue.add({ userId: newUser.insertedId });
       return response.status(201).json({ id: newUser.insertedId, email });
     } catch (error) {
       console.error('Error creating user:', error);
